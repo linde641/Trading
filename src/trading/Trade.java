@@ -6,34 +6,46 @@
 package trading;
 
 import com.ib.client.Contract;
+import com.ib.client.Order;
+
 
 /**
  *
  * @author paidforbyoptions
  */
 
-public class Trade {
-    
-    // data
+public class Trade {        
     
     public String ticker;
     public boolean isActive;
     public boolean isLong;
     public boolean isShort;
-    public float entry;
-    public float target;
-    public float stop; 
-    public float metricRank; //could be risk/reward or something else eventually
-    public float currentPrice;
+    public double entry;
+    public double target;
+    public double stop; 
+    public double metricRank; //could be risk/reward or something else eventually
+    public double currentPrice;
     
-    public Contract contract;
+    public Contract contract;  
+    public Order    order;
     
     /**************************************************************************/
     /************************* Constructors ***********************************/
     /**************************************************************************/
     
-    public Trade(String ticker, boolean active, float entry, 
-            float target, float stop, float metricRank, Contract contract)
+    /**
+     *
+     * @param ticker
+     * @param active
+     * @param entry
+     * @param target
+     * @param stop
+     * @param metricRank
+     * @param contract
+     * @param order
+     */
+    public Trade(String ticker, boolean active, double entry, double target,
+            double stop, double metricRank, Contract contract, Order order)
     {
         this.ticker = ticker;        
         this.entry = entry;
@@ -43,18 +55,25 @@ public class Trade {
         this.isLong = target > entry;
         this.isShort = target < entry;
         this.isActive = active; 
-        this.currentPrice = updatePrice();
+        //this.currentPrice = updatePrice();
         
-        this.contract = contract;
+        this.contract = contract;        
+        this.order = order;
     }        
     
     /**************************************************************************/
     /************************* Methods ****************************************/
     /**************************************************************************/        
+
     
-    public float updatePrice() // Calls IB API
+    public void updatePrice(double newPrice) // Calls IB API
     {
-        return 0;
+        currentPrice = newPrice;
+    }
+    
+    public double getPrice()
+    {
+        return currentPrice;
     }
     
     public boolean enterTrade()
@@ -81,6 +100,7 @@ public class Trade {
 //        this needs to have some sophistication to get the best possible price:
 //        probably needs to get spreads, enter several limit orders up to 3 max or 
 //                something and if they all fail just send a market order to get out
+        System.out.println("Exiting trade " + toString());
     }
     
     /* Also need to implement trailing stops somewhere in this file probably */

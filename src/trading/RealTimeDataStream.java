@@ -23,31 +23,35 @@ import com.ib.client.UnderComp;
 
 public class RealTimeDataStream implements EWrapper{
     
-    public EClientSocket client = null;   
-    public int nextOrderID = 0;
+    public Executive exec;
+    public EClientSocket client;   
+    public int nextOrderID;
+    public int clientID;
     
     /**************************************************************************/
     /************************* Constructors ***********************************/
     /**************************************************************************/
     
+    /**
+     *
+     * @param exec
+     * @param port
+     * @param clientID
+     */
     @SuppressWarnings({"empty-statement", "CallToPrintStackTrace"})
-    public RealTimeDataStream(int port)
+    public RealTimeDataStream(Executive exec, int port, int clientID)
     {
+        this.exec = exec;
+        this.nextOrderID = 1;
+        this.clientID = clientID;
         client = new EClientSocket(this);
         
         // connect to IB Gateway
-        client.eConnect(null, port, 0);
+        client.eConnect(null, port, clientID);
         
-        try
-        {
-            while(!client.isConnected()){
-                System.out.println("not connected");
-            }
+        if (!client.isConnected()){
+            System.out.println("Not Connected");
         }
-        catch (Exception e)
-        {
-            e.printStackTrace();
-        }       
     }
     
     
@@ -56,9 +60,10 @@ public class RealTimeDataStream implements EWrapper{
     @SuppressWarnings("CallToPrintStackTrace")
     public void tickPrice(int tickerId, int field, double price, int canAutoExecute) {
         try {
-            System.out.println("tickPrice: " + tickerId + "," + field + "," + price);
-            
-            
+            System.out.println("tickPrice: " + tickerId + "," + field + "," + price);   
+            if (field == 4) {
+                exec.watchList.get(tickerId).updatePrice(price);
+            }
         }
         catch (Error e) {
             e.printStackTrace();
@@ -67,14 +72,13 @@ public class RealTimeDataStream implements EWrapper{
 
     @Override
     public void tickSize(int tickerId, int field, int size) {
-        
+        System.out.println("Called tickSize");
     }
 
     @Override
     public void tickOptionComputation(int tickerId, int field, double impliedVol, double delta, double optPrice, double pvDividend, double gamma, double vega, double theta, double undPrice) {
         try {
-            System.out.println("OptionPrice: " + tickerId + "," + field + "," + optPrice +  ", IV:" + impliedVol);
-            
+            System.out.println("OptionPrice: " + tickerId + "," + field + "," + optPrice +  ", IV:" + impliedVol);            
             
         }
         catch (Error e) {
@@ -84,111 +88,113 @@ public class RealTimeDataStream implements EWrapper{
 
     @Override
     public void tickGeneric(int tickerId, int tickType, double value) {
-        
+        System.out.println("Called tickGeneric");
     }
 
     @Override
     public void tickString(int tickerId, int tickType, String value) {
-        
+        System.out.println("Called tickString");
     }
 
     @Override
     public void tickEFP(int tickerId, int tickType, double basisPoints, String formattedBasisPoints, double impliedFuture, int holdDays, String futureExpiry, double dividendImpact, double dividendsToExpiry) {
-        
+        System.out.println("Called tickEFP");
     }
 
     @Override
     public void orderStatus(int orderId, String status, int filled, int remaining, double avgFillPrice, int permId, int parentId, double lastFillPrice, int clientId, String whyHeld) {
-        
+        System.out.println("Called orderStatus");
     }
 
     @Override
     public void openOrder(int orderId, Contract contract, Order order, OrderState orderState) {
-        
+        System.out.println("Called openOrder");
     }
 
     @Override
     public void openOrderEnd() {
-        
+        System.out.println("Called openOrderEnd");
     }
 
     @Override
     public void updateAccountValue(String key, String value, String currency, String accountName) {
-        
+        System.out.println("Called updateAccountValue");
     }
 
     @Override
     public void updatePortfolio(Contract contract, int position, double marketPrice, double marketValue, double averageCost, double unrealizedPNL, double realizedPNL, String accountName) {
-        
+        System.out.println("Called updatePortfolio");
     }
 
     @Override
     public void updateAccountTime(String timeStamp) {
-        
+        System.out.println("Called updateAccountTime");
     }
 
     @Override
     public void accountDownloadEnd(String accountName) {
-        
+        System.out.println("Called accountDownloadEnd");
     }
 
     @Override
     public void nextValidId(int orderId) {
         nextOrderID = orderId;
+        System.out.println("Called nextValidId");
     }
 
     @Override
     public void contractDetails(int reqId, ContractDetails contractDetails) {
-        System.out.println("got it");
+        System.out.println("Called contractDetails");
     }
 
     @Override
     public void bondContractDetails(int reqId, ContractDetails contractDetails) {
-        
+        System.out.println("Called bondContractDetails");
     }
 
     @Override
     public void contractDetailsEnd(int reqId) {
-        
+        System.out.println("Called contractDetailsEnd");
     }
 
     @Override
     public void execDetails(int reqId, Contract contract, Execution execution) {
-        
+        System.out.println("Called execDetails");
     }
 
     @Override
     public void execDetailsEnd(int reqId) {
-        
+        System.out.println("Called execDetailsEnd");
     }
 
     @Override
     public void updateMktDepth(int tickerId, int position, int operation, int side, double price, int size) {
-        
+        System.out.println("Called updateMktDepth");
     }
 
     @Override
     public void updateMktDepthL2(int tickerId, int position, String marketMaker, int operation, int side, double price, int size) {
-        
+        System.out.println("Called updateMktDepthL2");
     }
 
     @Override
     public void updateNewsBulletin(int msgId, int msgType, String message, String origExchange) {
-        
+        System.out.println("Called updateNewsBulletin");
     }
 
     @Override
     public void managedAccounts(String accountsList) {
-        
+        System.out.println("Called managedAccounts");
     }
 
     @Override
     public void receiveFA(int faDataType, String xml) {
-        
+        System.out.println("Called receiveFA");
     }
 
     @Override
     public void historicalData(int reqId, String date, double open, double high, double low, double close, int volume, int count, double WAP, boolean hasGaps) {	       
+        System.out.println("Called historicalData");
         try 
 	{
 		System.out.println("historicalData: " + reqId + "," + date + "," + 
@@ -203,112 +209,112 @@ public class RealTimeDataStream implements EWrapper{
 
     @Override
     public void scannerParameters(String xml) {
-        
+        System.out.println("Called scannerParameters");
     }
 
     @Override
     public void scannerData(int reqId, int rank, ContractDetails contractDetails, String distance, String benchmark, String projection, String legsStr) {
-        
+        System.out.println("Called scannerData");
     }
 
     @Override
     public void scannerDataEnd(int reqId) {
-        
+        System.out.println("Called scannerDataEnd");
     }
 
     @Override
     public void realtimeBar(int reqId, long time, double open, double high, double low, double close, long volume, double wap, int count) {
-        
+        System.out.println("Called realtimeBar");
     }
 
     @Override
     public void currentTime(long time) {
-        
+        System.out.println("Called currentTime");
     }
 
     @Override
     public void fundamentalData(int reqId, String data) {
-        
+        System.out.println("Called fundamentalData");
     }
 
     @Override
     public void deltaNeutralValidation(int reqId, UnderComp underComp) {
-        
+        System.out.println("Called deltaNeutralValidation");
     }
 
     @Override
     public void tickSnapshotEnd(int reqId) {
-        
+        System.out.println("Called tickSnapshotEnd");
     }
 
     @Override
     public void marketDataType(int reqId, int marketDataType) {
-        
+        System.out.println("Called marketDataType");
     }
 
     @Override
     public void commissionReport(CommissionReport commissionReport) {
-        
+        System.out.println("Called comissionReport");
     }
 
     @Override
     public void position(String account, Contract contract, int pos, double avgCost) {
-        
+        System.out.println("Called position");
     }
 
     @Override
     public void positionEnd() {
-        
+        System.out.println("Called positionEnd");
     }
 
     @Override
     public void accountSummary(int reqId, String account, String tag, String value, String currency) {
-        
+        System.out.println("Called accountSummary");
     }
 
     @Override
     public void accountSummaryEnd(int reqId) {
-        
+        System.out.println("Called accountSummaryEnd");
     }
 
     @Override
     public void verifyMessageAPI(String apiData) {
-        
+        System.out.println("Called verifyMessageAPI");
     }
 
     @Override
     public void verifyCompleted(boolean isSuccessful, String errorText) {
-        
+        System.out.println("Called verifyCompleted");
     }
 
     @Override
     public void displayGroupList(int reqId, String groups) {
-        
+        System.out.println("Called displayGroupList");
     }
 
     @Override
     public void displayGroupUpdated(int reqId, String contractInfo) {
-        
+        System.out.println("Called displayGroupUpdated");
     }
 
     @Override
-    public void error(Exception e) {
-        
+    public void error(Exception e) {        
+        e.printStackTrace();
     }
 
     @Override
     public void error(String str) {
-        
+        System.out.println(str);
     }
 
     @Override
-    public void error(int id, int errorCode, String errorMsg) {
-        
+    public void error(int id, int errorCode, String errorMsg) {        
+        System.out.println("Error Code: " + errorCode + ", Error Msg: " + errorMsg);        
     }
 
     @Override
     public void connectionClosed() {
-        
+        System.out.println("Called connectionClosed");
     }
     
 }
