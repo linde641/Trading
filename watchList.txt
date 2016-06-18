@@ -1,0 +1,2 @@
+Ticker	Entry	Target	Stop	Rank	Active	secType	expiration	strike	right	conIDAAPL	100	110	90	0	0	OPT	20160624	94	CALL	232384443	
+fb	113	120	110	0	0	STK							
