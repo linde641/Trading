@@ -41,10 +41,10 @@ public class ChartScanner {
         
         length = i;
         
-        this.maxima = new LinkedList();
-        this.minima = new LinkedList();
-        this.resistances = new ArrayList();
-        this.supports = new ArrayList();
+        this.maxima = new LinkedList<Integer>();
+        this.minima = new LinkedList<Integer>();
+        this.resistances = new ArrayList<PriceCountPair> ();
+        this.supports = new ArrayList<PriceCountPair> ();
     }
     
     public void findResistance(float factor)
