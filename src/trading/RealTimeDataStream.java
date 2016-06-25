@@ -28,16 +28,8 @@ public class RealTimeDataStream implements EWrapper{
     public int nextOrderID;
     public int clientID;
     
-    /**************************************************************************/
-    /************************* Constructors ***********************************/
-    /**************************************************************************/
     
-    /**
-     *
-     * @param exec
-     * @param port
-     * @param clientID
-     */
+    
     @SuppressWarnings({"empty-statement", "CallToPrintStackTrace"})
     public RealTimeDataStream(Executive exec, int port, int clientID)
     {
@@ -61,9 +53,7 @@ public class RealTimeDataStream implements EWrapper{
     public void tickPrice(int tickerId, int field, double price, int canAutoExecute) {
         try {
             System.out.println("tickPrice: " + tickerId + "," + field + "," + price);   
-            if (field == 4) {
-                exec.watchList.get(tickerId).updatePrice(price);
-            }
+            exec.watchList.get(tickerId).updatePrice(price, field);            
         }
         catch (Error e) {
             e.printStackTrace();
@@ -76,7 +66,8 @@ public class RealTimeDataStream implements EWrapper{
     }
 
     @Override
-    public void tickOptionComputation(int tickerId, int field, double impliedVol, double delta, double optPrice, double pvDividend, double gamma, double vega, double theta, double undPrice) {
+    public void tickOptionComputation(int tickerId, int field, double impliedVol, double delta,
+            double optPrice, double pvDividend, double gamma, double vega, double theta, double undPrice) {
         try {
             System.out.println("OptionPrice: " + tickerId + "," + field + "," + optPrice +  ", IV:" + impliedVol);            
             
@@ -97,18 +88,22 @@ public class RealTimeDataStream implements EWrapper{
     }
 
     @Override
-    public void tickEFP(int tickerId, int tickType, double basisPoints, String formattedBasisPoints, double impliedFuture, int holdDays, String futureExpiry, double dividendImpact, double dividendsToExpiry) {
+    public void tickEFP(int tickerId, int tickType, double basisPoints, String formattedBasisPoints,
+            double impliedFuture, int holdDays, String futureExpiry, double dividendImpact, double dividendsToExpiry) {
         System.out.println("Called tickEFP");
     }
 
     @Override
-    public void orderStatus(int orderId, String status, int filled, int remaining, double avgFillPrice, int permId, int parentId, double lastFillPrice, int clientId, String whyHeld) {
+    public void orderStatus(int orderId, String status, int filled, int remaining, double avgFillPrice,
+            int permId, int parentId, double lastFillPrice, int clientId, String whyHeld) {
+        
         System.out.println("Called orderStatus");
     }
 
     @Override
     public void openOrder(int orderId, Contract contract, Order order, OrderState orderState) {
         System.out.println("Called openOrder");
+        
     }
 
     @Override
@@ -122,7 +117,8 @@ public class RealTimeDataStream implements EWrapper{
     }
 
     @Override
-    public void updatePortfolio(Contract contract, int position, double marketPrice, double marketValue, double averageCost, double unrealizedPNL, double realizedPNL, String accountName) {
+    public void updatePortfolio(Contract contract, int position, double marketPrice, double marketValue,
+            double averageCost, double unrealizedPNL, double realizedPNL, String accountName) {
         System.out.println("Called updatePortfolio");
     }
 
@@ -139,7 +135,11 @@ public class RealTimeDataStream implements EWrapper{
     @Override
     public void nextValidId(int orderId) {
         nextOrderID = orderId;
-        System.out.println("Called nextValidId");
+        System.out.println("nextOrderID received: " + orderId);
+        if (orderId != 1) {
+            System.out.println("NEXT VALID ID RECEIVED NOT EQUAL TO 1: ORDER ID IS STILL INDEX INTO ORDER LIST: EXITING");
+            System.exit(-1);
+        }
     }
 
     @Override
@@ -173,7 +173,8 @@ public class RealTimeDataStream implements EWrapper{
     }
 
     @Override
-    public void updateMktDepthL2(int tickerId, int position, String marketMaker, int operation, int side, double price, int size) {
+    public void updateMktDepthL2(int tickerId, int position, String marketMaker,
+            int operation, int side, double price, int size) {
         System.out.println("Called updateMktDepthL2");
     }
 
@@ -193,7 +194,8 @@ public class RealTimeDataStream implements EWrapper{
     }
 
     @Override
-    public void historicalData(int reqId, String date, double open, double high, double low, double close, int volume, int count, double WAP, boolean hasGaps) {	       
+    public void historicalData(int reqId, String date, double open, double high, double low,
+            double close, int volume, int count, double WAP, boolean hasGaps) {	       
         System.out.println("Called historicalData");
         try 
 	{
@@ -213,7 +215,8 @@ public class RealTimeDataStream implements EWrapper{
     }
 
     @Override
-    public void scannerData(int reqId, int rank, ContractDetails contractDetails, String distance, String benchmark, String projection, String legsStr) {
+    public void scannerData(int reqId, int rank, ContractDetails contractDetails,
+            String distance, String benchmark, String projection, String legsStr) {
         System.out.println("Called scannerData");
     }
 
@@ -223,7 +226,8 @@ public class RealTimeDataStream implements EWrapper{
     }
 
     @Override
-    public void realtimeBar(int reqId, long time, double open, double high, double low, double close, long volume, double wap, int count) {
+    public void realtimeBar(int reqId, long time, double open, double high, double low,
+            double close, long volume, double wap, int count) {
         System.out.println("Called realtimeBar");
     }
 

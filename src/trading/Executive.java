@@ -5,17 +5,16 @@
  */
 package trading;
 
-import com.ib.client.ComboLeg;
 import com.ib.client.Contract;
 import com.ib.client.Order;
-import com.ib.client.TagValue;
-import com.ib.client.UnderComp;
+import com.ib.client.OrderState;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Scanner;
-import java.util.Vector;
+
 
 /**
  *
@@ -27,24 +26,17 @@ public class Executive {
     public int port;
     public int clientID;
     public Path tickerFile;        
-    public List<Trade> watchList;    
-    RealTimeDataStream dataStream;    
+    public List<Trade> watchList;   
+    public HashMap<Integer, Order> orders;
+    RealTimeDataStream dataStream;        
     
-    /**************************************************************************/
-    /************************* Constructors ***********************************/
-    /**************************************************************************/
-    
-    /**
-     *
-     * @param tickerFile
-     * @param port
-     * @param clientID
-     */
+
     public Executive(Path tickerFile, int port, int clientID)
     {
         this.dataStream = new RealTimeDataStream(this, port, clientID);
         this.tickerFile = tickerFile;           
-        this.watchList = new LinkedList();        
+        this.watchList = new LinkedList(); 
+        
     }    
     
     /**************************************************************************/
@@ -53,28 +45,29 @@ public class Executive {
     
     public void importWatchlist()
     {        
-        System.out.println("Getting trades from " + tickerFile.toAbsolutePath().toString());
-        
-        int i = 0;
+        System.out.println("Getting trades from " + tickerFile.toAbsolutePath().toString());                
         
         String ticker;
         double entry, target, stop, rank;      
         boolean isActive;
                                             
     // COMBOS
-        String comboLegsDescrip; 
-        Vector<ComboLeg> comboLegs = new Vector();
+        //String comboLegsDescrip; 
+        //Vector<ComboLeg> comboLegs = new Vector();
 
-    // delta neutral
-        UnderComp underComp;        
-        
+    // delta neutral              
+    
+        int i = 0;
+    
         try (Scanner scanner = new Scanner(tickerFile)){                                               
             scanner.useDelimiter("\t");                
-            String firstLine = scanner.nextLine();            
+            scanner.nextLine();            
             
             while (scanner.hasNextLine()) {                   
                 Contract    contract = new Contract();
                 Order       order = new Order(); // still need to populate this
+                OrderState orderState = new OrderState();
+                
                 ticker = scanner.next();
                 contract.m_symbol = ticker;
                 entry = scanner.nextDouble();
@@ -96,11 +89,12 @@ public class Executive {
                 contract.m_currency = "USD";
                 contract.m_exchange = "SMART";
                 contract.m_includeExpired = false;
-                contract.m_comboLegs = comboLegs;
+                //contract.m_comboLegs = comboLegs;
                 
                 scanner.nextLine();
                                                                 
-                watchList.add(new Trade(ticker, isActive, entry, target, stop, rank, contract, order));
+                watchList.add(new Trade(ticker, isActive, entry, target, stop,
+                        rank, contract, order, orderState));
                 System.out.println(watchList.get(i).toString());
                 i++;                                
             }                        
@@ -118,44 +112,35 @@ public class Executive {
     
     public void execute() 
     {
-        //float currentPrice;
-        
         for (int i = 0; i < watchList.size(); i++) {
             // start the price data streams            
-            Vector<TagValue> mktDataOptions = new Vector<TagValue>();
-            dataStream.client.reqMktData(i, watchList.get(i).contract, null, false, mktDataOptions);                                
+            //Vector<TagValue> mktDataOptions = new Vector<TagValue>();
+            dataStream.client.reqMktData(i, watchList.get(i).contract, null, false, null);                                
         }
                         
         while (true) {
-            /*
-                In the above for loop, each socket will request data from the server. Then each associated 
-                EReader thread will wait for the data and call the associated EWrapper methods on their parent 
-                datastream object as the data comes in. So the EWrapper methods need to probably store the data
-                in a data structure that is available to this thread, which I think is trivial because there is 
-                only one process (I think). 
-            
-                Then, this loop basically just needs to have a mechanism to poll that data structure or something
-                and then enter/exit trades using the datastream objects as needed. 
-            
-            UPDATE: 
-                The EWrapper methods can simply update the "currentPrice" variable in the trade objects that the 
-                for loop below is looping through. This should be possible but will require mutex locks. Then the below 
-                code would already basically work. 
+            /*                        
+                The EWrapper methods update the "currentPrice" variable in the trade objects that the 
+                for loop below is looping through. 
             */
             
             for (int i = 0; i < watchList.size(); i++){
                 
                 Trade trade = watchList.get(i);
+                double currentPrice = trade.getPrice();
                 
                 if (!trade.isActive) // hasn't triggered 
                 {
                     // assuming here that each trade's current price is asynchronously updated by the client thread
 
-                    if ((trade.currentPrice >= trade.entry && trade.isLong)
-                            || (trade.currentPrice <= trade.entry && trade.isShort)) {// triggered
+                    if ((currentPrice >= trade.entry && trade.isLong)
+                            || currentPrice <= trade.entry && trade.isShort) {// triggered
                         //Need to generate the order object here or somewhere at least
-                        //dataStream.client.placeOrder(orderID, contract, order);
-                        System.out.println("Placing order for " + trade.toString());
+                        trade.order.m_orderId = dataStream.nextOrderID;
+                        dataStream.nextOrderID++; // THIS MAY NEED SYNCHRONIZATION: ORDER ID IS UPDATED FROM EREADER THREAD
+                        dataStream.client.placeOrder(trade.order.m_orderId, trade.contract, trade.order);
+                        System.out.println("Placed order for " + trade.toString());  
+                        trade.isActive = true;
                     }
                 } 
                 else // trade is already active
@@ -166,19 +151,17 @@ public class Executive {
         //                            "feels weird", etc
 
                     if (trade.isLong
-                            && (trade.currentPrice >= trade.target || trade.currentPrice <= trade.stop)) {
+                            && (currentPrice >= trade.target || currentPrice <= trade.stop)) {
                         // target is reached or getting stopped out
                         trade.exitTrade();
                     } 
                     else if (trade.isShort
-                            && (trade.currentPrice <= trade.target || trade.currentPrice >= trade.stop)) {
+                            && (currentPrice <= trade.target || currentPrice >= trade.stop)) {
                         trade.exitTrade();
                     }
                     // else do nothing
                 }
-            }
-
-        // might need a delay here so as to not overload api data limit
+            }        
         }
     }
 }

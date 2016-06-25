@@ -7,6 +7,7 @@ package trading;
 
 import com.ib.client.Contract;
 import com.ib.client.Order;
+import com.ib.client.OrderState;
 
 
 /**
@@ -24,28 +25,22 @@ public class Trade {
     public double target;
     public double stop; 
     public double metricRank; //could be risk/reward or something else eventually
-    public double currentPrice;
+        
+    public double bid;
+    public double ask;
+    public double last;
+    public double high;
+    public double low;
+    public double close;
     
     public Contract contract;  
     public Order    order;
+    OrderState      orderState;
+
     
-    /**************************************************************************/
-    /************************* Constructors ***********************************/
-    /**************************************************************************/
-    
-    /**
-     *
-     * @param ticker
-     * @param active
-     * @param entry
-     * @param target
-     * @param stop
-     * @param metricRank
-     * @param contract
-     * @param order
-     */
     public Trade(String ticker, boolean active, double entry, double target,
-            double stop, double metricRank, Contract contract, Order order)
+            double stop, double metricRank, Contract contract, Order order,
+            OrderState orderState)
     {
         this.ticker = ticker;        
         this.entry = entry;
@@ -54,26 +49,44 @@ public class Trade {
         this.metricRank = metricRank;
         this.isLong = target > entry;
         this.isShort = target < entry;
-        this.isActive = active; 
-        //this.currentPrice = updatePrice();
+        this.isActive = active;         
         
         this.contract = contract;        
         this.order = order;
+        this.orderState = orderState;
     }        
     
-    /**************************************************************************/
-    /************************* Methods ****************************************/
-    /**************************************************************************/        
+     
 
     
-    public void updatePrice(double newPrice) // Calls IB API
+    public void updatePrice(double newPrice, int field) // Calls IB API
     {
-        currentPrice = newPrice;
+        //currentPrice = newPrice;
+        switch (field) {
+            case 1: // bid
+                bid = newPrice;
+                break;
+            case 2:
+                ask = newPrice;
+                break;
+            case 4:
+                last = newPrice;
+                break;
+            case 6:
+                high = newPrice;
+                break;
+            case 7:
+                low = newPrice;
+                break;
+            case 9:
+                close = newPrice;
+                break;
+        }        
     }
     
     public double getPrice()
     {
-        return currentPrice;
+        return close;
     }
     
     public boolean enterTrade()

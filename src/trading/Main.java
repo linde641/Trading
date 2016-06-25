@@ -5,40 +5,55 @@
  */
 package trading;
 
+import com.ib.client.Contract;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import com.ib.client.Contract;
 import com.ib.client.TagValue;
-import java.util.Vector;
+import java.util.List;
+
 /**
  *
  * @author paidforbyoptions
  */
 public class Main {
 
-    private static final int PORT = 4001;
+    private static final int PORT_LIVE = 4001;
+    private static final int PORT_PAPER = 4002;
     private static final int CLIENT_ID = 0;
     
     /**
-     * @param args the command line arguments
+     * @param args the command line arguments 
      * @throws java.io.IOException
      */
-    public static void main(String[] args) throws IOException {        
-     
-        Path tickerFile = Paths.get("watchList.txt");                
+    public static void main(String[] args) throws IOException {                                                                       
+
+        Executive exec;        
+        int clientID = CLIENT_ID;
         
-        // get watchlist from file
-       
+        if (args.length == 0) {            
+            System.out.println("ERROR: USAGE: ARGUMENT 1 = SOCKET PORT: 4001 FOR LIVE, 4002 FOR PAPER");
+            System.out.println("OPTIONAL ARGUMENT 2: CLIENT ID, DEFAULT = 0");
+            return;
+        }        
+        else if (args.length == 2) {
+            clientID = Integer.parseInt(args[1]);
+        }
         
-        // connect to IB Gateway
+        Path tickerFile = Paths.get("watchList.txt");     
         
-        //RealTimeDataStream dataStream = new RealTimeDataStream(PORT, CLIENT_ID);
-        //RealTimeDataStream dataStream2 = new RealTimeDataStream(port, 2);
-        //RealTimeDataStream dataStream3 = new RealTimeDataStream(port, 3);
+        switch (Integer.parseInt(args[0])) {
+            case PORT_LIVE:
+                exec = new Executive(tickerFile, PORT_LIVE, clientID);
+                break;
+            case PORT_PAPER:
+                exec = new Executive(tickerFile, PORT_PAPER, clientID);
+                break;            
+            default:
+                System.out.println("ERROR: FIRST ARGUMENT (PORT) MUST BE 4001 FOR LIVE OR 4002 FOR PAPER TRADING");
+                return;
+        }
         
-        
-        Executive exec = new Executive(tickerFile, PORT, CLIENT_ID);
         exec.importWatchlist();         
         exec.execute();
         
@@ -48,7 +63,9 @@ public class Main {
         
         
         
-        
+        //RealTimeDataStream dataStream = new RealTimeDataStream(exec, exec.port, CLIENT_ID);
+        //RealTimeDataStream dataStream2 = new RealTimeDataStream(port, 2);
+        //RealTimeDataStream dataStream3 = new RealTimeDataStream(port, 3);
         
         
         
@@ -59,7 +76,10 @@ public class Main {
         contract1.m_exchange = "SMART";
         contract1.m_secType = "STK";
         contract1.m_currency = "USD";
-
+        
+        
+        exec.dataStream.client.reqHistoricalData(clientID, contract1, "20160620 00:00:00", "1 Y", "1 day", "TRADES", 1, 1, null);
+        /*
         Contract contract2 = new Contract ();
         contract2.m_symbol = "GOOGL";
         contract2.m_exchange = "SMART";
@@ -76,7 +96,7 @@ public class Main {
         contract3.m_right = "CALL";
         contract3.m_strike = 100.00;
         contract3.m_multiplier = "100";
-        /*
+        
         Vector<TagValue> mktDataOptions = new Vector<TagValue>();
         dataStream.client.reqMktData(1, contract1, null, false, mktDataOptions);        
         dataStream.client.reqMktData(2, contract2, null, false, mktDataOptions);     
@@ -89,8 +109,7 @@ public class Main {
         //dataStream.client.reqMktData(2, contract, null, false, mktDataOptions);  
         //dataStream.client.reqContractDetails(1, contract);
         
-        System.out.println("home thread exiting");
-
+        System.out.println("MAIN THREAD EXITING");;
     }
     
 }
