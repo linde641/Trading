@@ -21,7 +21,7 @@ import com.ib.client.Order;
 import com.ib.client.OrderState;
 import com.ib.client.UnderComp;
 
-public class RealTimeDataStream implements EWrapper{
+public class DataStreamHandler implements EWrapper{
     
     public Executive exec;
     public EClientSocket client;   
@@ -31,10 +31,10 @@ public class RealTimeDataStream implements EWrapper{
     
     
     @SuppressWarnings({"empty-statement", "CallToPrintStackTrace"})
-    public RealTimeDataStream(Executive exec, int port, int clientID)
+    public DataStreamHandler(Executive exec, int port, int clientID)
     {
         this.exec = exec;
-        this.nextOrderID = 1;
+        this.nextOrderID = 1; 
         this.clientID = clientID;
         client = new EClientSocket(this);
         
@@ -96,8 +96,15 @@ public class RealTimeDataStream implements EWrapper{
     @Override
     public void orderStatus(int orderId, String status, int filled, int remaining, double avgFillPrice,
             int permId, int parentId, double lastFillPrice, int clientId, String whyHeld) {
+        // called when the status of an order changes
         
         System.out.println("Called orderStatus");
+        
+        int index = exec.orderIDtoTickerID.get(orderId); // this index is also the tickerId
+        OrderState orderState = exec.watchList.get(index).orderState;
+        orderState.m_status = status;
+        // update the OrderState object of the corresponding trade with status, etc.
+        
     }
 
     @Override
@@ -137,8 +144,8 @@ public class RealTimeDataStream implements EWrapper{
         nextOrderID = orderId;
         System.out.println("nextOrderID received: " + orderId);
         if (orderId != 1) {
-            System.out.println("NEXT VALID ID RECEIVED NOT EQUAL TO 1: ORDER ID IS STILL INDEX INTO ORDER LIST: EXITING");
-            System.exit(-1);
+            //System.out.println("NEXT VALID ID RECEIVED NOT EQUAL TO 1: ORDER ID IS STILL INDEX INTO ORDER LIST: EXITING");
+            //System.exit(-1);
         }
     }
 
@@ -159,7 +166,10 @@ public class RealTimeDataStream implements EWrapper{
 
     @Override
     public void execDetails(int reqId, Contract contract, Execution execution) {
+        // called when an order is executed
         System.out.println("Called execDetails");
+        
+        
     }
 
     @Override

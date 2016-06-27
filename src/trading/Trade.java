@@ -8,7 +8,7 @@ package trading;
 import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
-
+import com.ib.client.Action;
 
 /**
  *
@@ -25,7 +25,8 @@ public class Trade {
     public double target;
     public double stop; 
     public double metricRank; //could be risk/reward or something else eventually
-        
+    //public Action action;
+    
     public double bid;
     public double ask;
     public double last;
@@ -40,7 +41,7 @@ public class Trade {
     
     public Trade(String ticker, boolean active, double entry, double target,
             double stop, double metricRank, Contract contract, Order order,
-            OrderState orderState)
+            OrderState orderState, int totalQuantity, int clientId)
     {
         this.ticker = ticker;        
         this.entry = entry;
@@ -54,9 +55,117 @@ public class Trade {
         this.contract = contract;        
         this.order = order;
         this.orderState = orderState;
+        
+        initOrder(clientId, totalQuantity);
     }        
-    
-     
+    /*
+        public Order(int orderId, int clientId, int permId, String action, int totalQuantity,
+            String orderType, double lmtPrice, double auxPrice
+    */
+    private void initOrder(int clientId, int totalQuantity)
+    {
+        /*
+        Order ID of 0 is hardcoded in as first argument to constructor. It will be 
+        set non-zero once the trade triggers.
+        PermId also set to 0. Not exactly sure how this works yet 6/26/16
+        */
+                
+        String action = "";
+        
+        if ( !isActive && isLong){
+            if (contract.m_secType.equals("OPT")){
+                switch (contract.m_right) {
+                    case "CALL":
+                        System.out.println("WARNING: Generating a CALL BUY TO OPEN order");
+                        action = Action.BUY.get();
+                        break;
+                    case "PUT":
+                        System.out.println("WARNING: Generating a PUT SELL TO OPEN order");
+                        action = Action.SSHORT.get();                    
+                        break;
+                    default:
+                        System.out.println("ERROR: initOrder : EXITING");
+                        System.exit(-1);
+                        break;
+                }
+            }
+            else if (contract.m_secType.equals("STK")){
+                System.out.println("WARNING: Generating a STK BUY TO OPEN order");
+                action = Action.BUY.get();                    
+            }
+        }
+        
+        else if ( !isActive && isShort){
+            if (contract.m_secType.equals("OPT")){
+                switch (contract.m_right) {
+                    case "PUT":
+                        System.out.println("WARNING: Generating a PUT BUY TO OPEN order");
+                        action = Action.BUY.get();                    
+                        break;
+                    case "CALL":
+                        System.out.println("WARNING: Generating a CALL SELL TO OPEN order");
+                        action = Action.SSHORT.get();                    
+                        break;
+                    default:
+                        System.out.println("ERROR: initOrder : EXITING");
+                        System.exit(-1);
+                        break;
+                }
+            }
+            else if (contract.m_secType.equals("STK")){
+                System.out.println("WARNING: Generating a STK SELL TO OPEN order");
+                action = Action.SSHORT.get();                    
+            }
+        }
+        
+        else if (isActive && isLong){
+            if (contract.m_secType.equals("OPT")){
+                switch (contract.m_right) {
+                    case "CALL":
+                        System.out.println("WARNING: Generating a CALL SELL TO COVER order");
+                        action = Action.SELL.get();                    
+                        break;
+                    case "PUT":
+                        System.out.println("WARNING: Generating a PUT BUY TO COVER order");
+                        action = Action.BUY.get();                    
+                        break;
+                    default:
+                        System.out.println("ERROR: initOrder : EXITING");
+                        System.exit(-1);
+                        break;
+                }
+            }
+            else if (contract.m_secType.equals("OPT")){
+                System.out.println("WARNING: Generating a STK SELL TO COVER order");
+                action = Action.SELL.get();                    
+            }
+        }
+        
+        else if (isActive && isShort){
+            if (contract.m_secType.equals("OPT")){
+                switch (contract.m_right) {
+                    case "PUT":
+                        System.out.println("WARNING: Generating a PUT SELL TO COVER order");
+                        action = Action.SELL.get();                    
+                        break;                
+                    case "CALL":
+                        System.out.println("WARNING: Generating a CALL BUY TO COVER order");
+                        action = Action.BUY.get();                    
+                        break;
+                    default:
+                        System.out.println("ERROR: initOrder : EXITING");
+                        System.exit(-1);
+                        break;
+                }
+            }
+            else if (contract.m_secType.equals("STK")){
+                System.out.println("WARNING: Generating a STK BUY TO COVER order");
+                action = Action.BUY.get();
+            }
+        }   
+        
+        order.setMainOrderFields(0, clientId, 0, action, totalQuantity, "LMT", 0, 0);                        
+    }
 
     
     public void updatePrice(double newPrice, int field) // Calls IB API

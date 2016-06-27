@@ -27,14 +27,15 @@ public class Executive {
     public int clientID;
     public Path tickerFile;        
     public List<Trade> watchList;   
-    public HashMap<Integer, Order> orders;
-    RealTimeDataStream dataStream;        
+    public HashMap<Integer, Integer> orderIDtoTickerID;
+    DataStreamHandler dataStreamHandler;        
     
 
     public Executive(Path tickerFile, int port, int clientID)
     {
-        this.dataStream = new RealTimeDataStream(this, port, clientID);
-        this.tickerFile = tickerFile;           
+        this.dataStreamHandler = new DataStreamHandler(this, port, clientID);
+        this.tickerFile = tickerFile; 
+        this.clientID = clientID;
         this.watchList = new LinkedList(); 
         
     }    
@@ -47,8 +48,14 @@ public class Executive {
     {        
         System.out.println("Getting trades from " + tickerFile.toAbsolutePath().toString());                
         
-        String ticker;
-        double entry, target, stop, rank;      
+        /* the variables below should all be fields in the watchList file.
+            Some are unused because they aren't in the file yet. These fields are saved
+            as local variables because they are passed later into methods (mostly
+            the trade constructor).
+        */
+        int totalQuantity;
+        String ticker, orderType;
+        double entry, target, stop, rank, lmtPrce, auxPrice;      
         boolean isActive;
                                             
     // COMBOS
@@ -60,12 +67,12 @@ public class Executive {
         int i = 0;
     
         try (Scanner scanner = new Scanner(tickerFile)){                                               
-            scanner.useDelimiter("\t");                
+            scanner.useDelimiter(",|\\r|\\n");                
             scanner.nextLine();            
             
             while (scanner.hasNextLine()) {                   
                 Contract    contract = new Contract();
-                Order       order = new Order(); // still need to populate this
+                Order       order = new Order();
                 OrderState orderState = new OrderState();
                 
                 ticker = scanner.next();
@@ -73,6 +80,7 @@ public class Executive {
                 entry = scanner.nextDouble();
                 target = scanner.nextDouble();
                 stop = scanner.nextDouble();
+                totalQuantity = scanner.nextInt();
                 rank = scanner.nextDouble();                
                 
                 isActive = scanner.nextInt() != 0;
@@ -82,23 +90,26 @@ public class Executive {
                 if (contract.m_secType.equals("OPT")){
                     contract.m_expiry = scanner.next();
                     contract.m_strike = scanner.nextDouble();
-                    contract.m_right = scanner.next();                    
+                    contract.m_right = scanner.next();                                        
                     contract.m_conId = scanner.nextInt();                                        
                     contract.m_multiplier = "100";                    
-                }
+                }                
                 contract.m_currency = "USD";
                 contract.m_exchange = "SMART";
                 contract.m_includeExpired = false;
-                //contract.m_comboLegs = comboLegs;
+                //contract.m_comboLegs = comboLegs;                
                 
                 scanner.nextLine();
-                                                                
-                watchList.add(new Trade(ticker, isActive, entry, target, stop,
-                        rank, contract, order, orderState));
+                
+                Trade trade = new Trade(ticker, isActive, entry, target, stop,
+                        rank, contract, order, orderState, totalQuantity, clientID);
+                /* NOTE: this constructor calls a private method to set the main 
+                    order fields such as "action" etc.
+                */
+                watchList.add(trade);
                 System.out.println(watchList.get(i).toString());
                 i++;                                
-            }                        
-            
+            }                                    
         } catch (IOException x) {
             System.err.format("IOException: %s%n", x);
         }
@@ -109,13 +120,12 @@ public class Executive {
     }            
     
     
-    
     public void execute() 
     {
         for (int i = 0; i < watchList.size(); i++) {
             // start the price data streams            
             //Vector<TagValue> mktDataOptions = new Vector<TagValue>();
-            dataStream.client.reqMktData(i, watchList.get(i).contract, null, false, null);                                
+            dataStreamHandler.client.reqMktData(i, watchList.get(i).contract, null, false, null);                                
         }
                         
         while (true) {
@@ -136,9 +146,9 @@ public class Executive {
                     if ((currentPrice >= trade.entry && trade.isLong)
                             || currentPrice <= trade.entry && trade.isShort) {// triggered
                         //Need to generate the order object here or somewhere at least
-                        trade.order.m_orderId = dataStream.nextOrderID;
-                        dataStream.nextOrderID++; // THIS MAY NEED SYNCHRONIZATION: ORDER ID IS UPDATED FROM EREADER THREAD
-                        dataStream.client.placeOrder(trade.order.m_orderId, trade.contract, trade.order);
+                        trade.order.m_orderId = dataStreamHandler.nextOrderID;
+                        dataStreamHandler.nextOrderID++; // THIS MAY NEED SYNCHRONIZATION: ORDER ID IS UPDATED FROM EREADER THREAD
+                        dataStreamHandler.client.placeOrder(trade.order.m_orderId, trade.contract, trade.order);
                         System.out.println("Placed order for " + trade.toString());  
                         trade.isActive = true;
                     }

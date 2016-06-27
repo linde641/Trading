@@ -1,0 +1,3 @@
+Ticker,Entry,Target,Stop,Quantity,Rank,isActive,secType,expiration,strike,right,conID,
+AAPL,100,110,95,1,0,0,OPT,20161021,100,CALL,215606586,
+FB,111,115,103,10,0,0,STK,,,,,
