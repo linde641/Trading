@@ -1,11 +1,13 @@
-/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
- * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
-
-package com.ib.controller;
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package com.ib.client;
 
 
 public class Position {
-	private NewContract m_contract;        
+	private Contract m_contract;       
 	private String m_account;
 	private int m_position;
 	private double m_marketPrice;
@@ -14,8 +16,8 @@ public class Position {
 	private double m_unrealPnl;
 	private double m_realPnl;
 
-	public NewContract contract()   { return m_contract; }        
-	public int conid()				{ return m_contract.conid(); }        
+	public Contract contract()      { return m_contract; }        
+	public int conid()		{ return m_contract.m_conId; }        
 	public double averageCost() 	{ return m_averageCost;}
 	public double marketPrice() 	{ return m_marketPrice;}
 	public double marketValue() 	{ return m_marketValue;}
@@ -32,7 +34,7 @@ public class Position {
 //	public void realPnl(double v) 		{ m_realPnl = v;}
 //	public void unrealPnl(double v) 	{ m_unrealPnl = v;}
 
-	public Position( NewContract contract, String account, int position, double marketPrice, double marketValue, double averageCost, double unrealPnl, double realPnl) {		
+	public Position( Contract contract, String account, int position, double marketPrice, double marketValue, double averageCost, double unrealPnl, double realPnl) {		
                 m_contract = contract;
 		m_account = account;
 		m_position = position;

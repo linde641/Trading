@@ -17,31 +17,47 @@ import com.ib.client.Action;
 
 public class Trade {        
     
-    public String ticker;
-    public boolean isActive;
-    public boolean isLong;
-    public boolean isShort;
-    public double entry;
-    public double target;
-    public double stop; 
-    public double metricRank; //could be risk/reward or something else eventually
-    //public Action action;
+    public String   ticker;
+    public boolean  isActive;
+    public boolean  isLong;
+    public boolean  isShort;
+    public double   entry;
+    public double   target;
+    public double   stop; 
+    public double   metricRank; //could be risk/reward or something else eventually    
+    public int      quantity; // position
     
-    public double bid;
-    public double ask;
-    public double last;
-    public double high;
-    public double low;
-    public double close;
+    // tickPrice fields
+    public double   bid;
+    public double   ask;
+    public double   last;
+    public double   high;
+    public double   low;
+    public double   close;
+    
+    /*
+    Contract contract, int position, double marketPrice, double marketValue,
+            double averageCost, double unrealizedPNL, double realizedPNL, String accountName)
+    */
+    
+    /*
+    // updatePortfolio args
+    
+    public double   marketPrice;
+    public double   marketValue;
+    public double   averageCost;
+    public double   unrealizedPNL;
+    public double   realizedPNL;
+    */
     
     public Contract contract;  
     public Order    order;
     OrderState      orderState;
-
+    
     
     public Trade(String ticker, boolean active, double entry, double target,
             double stop, double metricRank, Contract contract, Order order,
-            OrderState orderState, int totalQuantity, int clientId)
+            OrderState orderState, int quantity, int clientId)
     {
         this.ticker = ticker;        
         this.entry = entry;
@@ -55,21 +71,14 @@ public class Trade {
         this.contract = contract;        
         this.order = order;
         this.orderState = orderState;
+        this.quantity = quantity;
         
-        initOrder(clientId, totalQuantity);
+        initOrder(clientId, quantity);
     }        
-    /*
-        public Order(int orderId, int clientId, int permId, String action, int totalQuantity,
-            String orderType, double lmtPrice, double auxPrice
-    */
-    private void initOrder(int clientId, int totalQuantity)
-    {
-        /*
-        Order ID of 0 is hardcoded in as first argument to constructor. It will be 
-        set non-zero once the trade triggers.
-        PermId also set to 0. Not exactly sure how this works yet 6/26/16
-        */
-                
+
+    
+    private void initOrder(int clientId, int quantity)
+    {                
         String action = "";
         
         if ( !isActive && isLong){
@@ -164,7 +173,14 @@ public class Trade {
             }
         }   
         
-        order.setMainOrderFields(0, clientId, 0, action, totalQuantity, "LMT", 0, 0);                        
+        /*
+        Order ID of 0 is hardcoded in as first argument to constructor. It will be 
+        set non-zero once the trade triggers.
+        PermId also set to 0. Not exactly sure how this works yet 6/26/16
+        same with LMT price and AUX price
+        */
+        
+        order.setMainOrderFields(0, clientId, 0, action, quantity, "LMT", 0, 0);        
     }
 
     
@@ -195,7 +211,17 @@ public class Trade {
     
     public double getPrice()
     {
-        return close;
+        return last;
+    }
+    
+    public void updateQuantity(int quantity)
+    {
+        this.quantity = quantity;
+    }
+    
+    public int getQuantity()
+    {
+        return this.quantity;
     }
     
     public boolean enterTrade()

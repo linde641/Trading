@@ -104,7 +104,6 @@ public class DataStreamHandler implements EWrapper{
         OrderState orderState = exec.watchList.get(index).orderState;
         orderState.m_status = status;
         // update the OrderState object of the corresponding trade with status, etc.
-        
     }
 
     @Override
@@ -120,13 +119,28 @@ public class DataStreamHandler implements EWrapper{
 
     @Override
     public void updateAccountValue(String key, String value, String currency, String accountName) {
-        System.out.println("Called updateAccountValue");
+        System.out.println("Called updateAccountValue: " + key + ", " + value + ", " + currency + ", " + accountName);     
+        exec.portfolios.get(accountName).updatePortfolio(key, value, currency, accountName);
     }
 
     @Override
     public void updatePortfolio(Contract contract, int position, double marketPrice, double marketValue,
             double averageCost, double unrealizedPNL, double realizedPNL, String accountName) {
-        System.out.println("Called updatePortfolio");
+        System.out.println("Called updatePortfolio: ");
+        
+        /*        
+        for (Trade trade : exec.watchList) {
+            if (trade.contract.m_conId == contract.m_conId) {
+                trade.contract = contract;
+                if (trade.quantity != position) {
+                    System.out.println("WARNING, updatePortfolio: position mismatch with watchList. Overwriting");
+                    trade.quantity = position;
+                }
+                
+                
+            }
+        }
+        */
     }
 
     @Override
@@ -195,7 +209,17 @@ public class DataStreamHandler implements EWrapper{
 
     @Override
     public void managedAccounts(String accountsList) {
-        System.out.println("Called managedAccounts");
+        System.out.println("Managed Accounts: ");
+        String[] accounts = accountsList.split(",");
+        
+        for (String acct : accounts) {
+            System.out.println(acct);
+            Portfolio p = new Portfolio();
+            p.acctCode = acct;
+            exec.portfolios.put(acct, p); // finishing off exec constructor            
+        }
+        
+        System.out.println("End Managed Accounts");
     }
 
     @Override
