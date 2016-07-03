@@ -68,3 +68,5 @@ Pretty much finished handling account/portfolio data at connection as well as or
 Need to add the ability to send partial orders, particularly on exit. Right now trade.initOrder is used to set the quantity of the orders and they are always the same amount.
 
 Known error: Still need to handle open orders at startup. Right now you get null pointer errors because the map orderIDtoTickerID isn’t correctly populated yet. This will need to be read in from watchlist file.
+
+asdf
