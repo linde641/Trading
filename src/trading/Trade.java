@@ -8,7 +8,8 @@ package trading;
 import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
-import com.ib.client.Action;
+import com.ib.client.EClientSocket;
+import com.ib.client.Position;
 
 /**
  *
@@ -35,30 +36,19 @@ public class Trade {
     public double   low;
     public double   close;
     
-    /*
-    Contract contract, int position, double marketPrice, double marketValue,
-            double averageCost, double unrealizedPNL, double realizedPNL, String accountName)
-    */
-    
-    /*
-    // updatePortfolio args
-    
-    public double   marketPrice;
-    public double   marketValue;
-    public double   averageCost;
-    public double   unrealizedPNL;
-    public double   realizedPNL;
-    */
-    
+    // com.ib.client class fields
+    public Position position;
     public Contract contract;  
     public Order    order;
     OrderState      orderState;
     
+    String          orderStatus;
+    
     
     public Trade(String ticker, boolean active, double entry, double target,
-            double stop, double metricRank, Contract contract, Order order,
-            OrderState orderState, int quantity, int clientId)
-    {
+            double stop, double metricRank, Contract contract, Position position, 
+            Order order, OrderState orderState, int quantity, int clientId)
+    {        
         this.ticker = ticker;        
         this.entry = entry;
         this.target = target;
@@ -67,19 +57,44 @@ public class Trade {
         this.isLong = target > entry;
         this.isShort = target < entry;
         this.isActive = active;         
-        
-        this.contract = contract;        
+                
+        this.position = position;
+        this.contract = contract;
+        //this.contract = position.contract();
+        //position.contract(contract);
         this.order = order;
         this.orderState = orderState;
-        this.quantity = quantity;
+        this.quantity = quantity;        
+        this.orderStatus = OrderStatus.NotSet.get();        
         
-        initOrder(clientId, quantity);
+        //initOrder(clientId, quantity);
     }        
 
+    public Contract contract()
+    {
+        return contract;
+    }
     
-    private void initOrder(int clientId, int quantity)
+    public void contract(Contract c) 
+    {
+        this.contract = c;
+    }
+    
+    public Order order()
+    {
+        return this.order;
+    }
+    
+    public void order(Order o)
+    {
+        this.order = o;
+    }
+    
+    public void initOrder(int clientId, int quantity)
     {                
         String action = "";
+        
+        Contract contract = contract();
         
         if ( !isActive && isLong){
             if (contract.m_secType.equals("OPT")){
@@ -127,7 +142,7 @@ public class Trade {
             }
         }
         
-        else if (isActive && isLong){
+        else if (isActive && isLong){ // exiting
             if (contract.m_secType.equals("OPT")){
                 switch (contract.m_right) {
                     case "CALL":
@@ -178,12 +193,13 @@ public class Trade {
         set non-zero once the trade triggers.
         PermId also set to 0. Not exactly sure how this works yet 6/26/16
         same with LMT price and AUX price
-        */
         
+        setMainOrderFields( int orderId, int clientId, int permId, String action, int totalQuantity,
+            String orderType, double lmtPrice, double auxPrice)
+        */
         order.setMainOrderFields(0, clientId, 0, action, quantity, "LMT", 0, 0);        
     }
 
-    
     public void updatePrice(double newPrice, int field) // Calls IB API
     {
         //currentPrice = newPrice;
@@ -211,7 +227,7 @@ public class Trade {
     
     public double getPrice()
     {
-        return last;
+        return close;
     }
     
     public void updateQuantity(int quantity)
@@ -219,43 +235,59 @@ public class Trade {
         this.quantity = quantity;
     }
     
-    public int getQuantity()
+    public int quantity()
     {
         return this.quantity;
     }
     
-    public boolean enterTrade()
+    public boolean enterTrade(EClientSocket client)
     {
-        if (isActive){
-            System.err.println("Error: Attempted to enter an already active trade");
-            return false;
-        }
-        if (isLong)
-        {
-            System.out.println("Entered: " + toString());
-        }
-        else if (isShort)
-        {
-            System.out.println("Entered: " + toString());
-        }
+        /*
+        Maybe here is where I loop trying to get the best price etc. 
+        */
         
-        isActive = true;
+        if (isActive){
+            System.err.println("Error: Attempted to enter an active trade");            
+        }
+        else {
+            order.m_lmtPrice = getPrice();
+            client.placeOrder(order.m_orderId, contract, order);
+            System.out.println("Waiting for execution of entry: " + toString());
+            while( !orderStatus.equals(OrderStatus.Filled.get())){
+                // block until order is executed fully
+            }
+            isActive = true;
+        }
+                
         return isActive;
     }
     
-    public void exitTrade()
+    public boolean exitTrade(EClientSocket client)
     {
 //        this needs to have some sophistication to get the best possible price:
 //        probably needs to get spreads, enter several limit orders up to 3 max or 
 //                something and if they all fail just send a market order to get out
-        System.out.println("Exiting trade " + toString());
+        if (!isActive){
+            System.err.println("Error: Attempted to exit an inactive trade");            
+        }
+        else {
+            order.m_lmtPrice = last;
+            client.placeOrder(order.m_orderId, contract, order);
+            System.out.println("Waiting for execution of exit: " + toString());
+            while( !orderStatus.equals(OrderStatus.Filled.get())){
+                // block until order is executed fully
+            }            
+            isActive = false;
+        }
+        
+        return !isActive;
     }
     
     /* Also need to implement trailing stops somewhere in this file probably */
     
     @Override
     public String toString()
-    {
-        return this.ticker + " entry: " + this.entry + " active: " + this.isActive;
+    {        
+        return this.ticker + " Quantity: " + quantity + ", conID: " + contract.m_conId;
     }
 }

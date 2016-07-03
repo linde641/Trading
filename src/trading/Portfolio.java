@@ -21,6 +21,7 @@ public class Portfolio {
     double  unrealizedPnL;
     int     dayTradesRemaining;
     
+    String updateTime;
     List<Position> positions;
     
     

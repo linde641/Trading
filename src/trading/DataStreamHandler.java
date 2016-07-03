@@ -20,6 +20,8 @@ import com.ib.client.Execution;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
 import com.ib.client.UnderComp;
+import com.ib.client.Position;
+
 
 public class DataStreamHandler implements EWrapper{
     
@@ -28,7 +30,7 @@ public class DataStreamHandler implements EWrapper{
     public int nextOrderID;
     public int clientID;
     
-    
+    public boolean msgComplete;
     
     @SuppressWarnings({"empty-statement", "CallToPrintStackTrace"})
     public DataStreamHandler(Executive exec, int port, int clientID)
@@ -44,10 +46,78 @@ public class DataStreamHandler implements EWrapper{
         if (!client.isConnected()){
             System.out.println("Not Connected");
         }
+        
+        msgComplete = true;
+    }
+
+    @Override
+    public void managedAccounts(String accountsList) {
+        System.out.println("Managed Accounts: ");
+        String[] accounts = accountsList.split(",");
+        
+        for (String acct : accounts) {
+            System.out.println(acct);
+            Portfolio p = new Portfolio();
+            p.acctCode = acct;
+            exec.portfolios.put(acct, p); // finishing off exec constructor               
+        }
+        
+        //System.out.println("End Managed Accounts");
     }
     
-    
+    @Override
+    public void nextValidId(int orderId) {
+        nextOrderID = orderId;
+        System.out.println("nextOrderID received: " + orderId);
+        if (orderId != 1) {
+            //System.out.println("NEXT VALID ID RECEIVED NOT EQUAL TO 1: ORDER ID IS STILL INDEX INTO ORDER LIST: EXITING");
+            //System.exit(-1);
+        }
+    }        
 
+    @Override
+    public void updateAccountValue(String key, String value, String currency, String accountName) {
+        System.out.println("Called updateAccountValue: " + key + ", " + value + ", " + currency + ", " + accountName);
+        // portfolios is initialized in "managedAccounts()"
+        exec.portfolios.get(accountName).updatePortfolio(key, value, currency, accountName);
+    }
+
+    @Override
+    public void updatePortfolio(Contract contract, int position, double marketPrice, double marketValue,
+            double averageCost, double unrealizedPNL, double realizedPNL, String accountName) {
+        System.out.println("Called updatePortfolio: ");
+        
+        Position newPosition = new Position(contract, accountName, position, 
+            marketPrice, marketValue, averageCost, unrealizedPNL, realizedPNL);
+
+        exec.portfolios.get(accountName).positions.add(newPosition);
+        
+        /*        
+        for (Trade trade : exec.watchList) {
+            if (trade.contract.m_conId == contract.m_conId) {
+                trade.contract = contract;
+                if (trade.quantity != position) {
+                    System.out.println("WARNING, updatePortfolio: position mismatch with watchList. Overwriting");
+                    trade.quantity = position;
+                }
+                
+                
+            }
+        }
+        */
+    }
+
+    @Override
+    public void updateAccountTime(String timeStamp) {
+        System.out.println("Called updateAccountTime");        
+    }
+
+    @Override
+    public void accountDownloadEnd(String accountName) {
+        System.out.println("Called accountDownloadEnd");      
+        
+    }    
+    
     @Override
     @SuppressWarnings("CallToPrintStackTrace")
     public void tickPrice(int tickerId, int field, double price, int canAutoExecute) {
@@ -96,14 +166,15 @@ public class DataStreamHandler implements EWrapper{
     @Override
     public void orderStatus(int orderId, String status, int filled, int remaining, double avgFillPrice,
             int permId, int parentId, double lastFillPrice, int clientId, String whyHeld) {
-        // called when the status of an order changes
-        
+        // called when the status of an order changes        
         System.out.println("Called orderStatus");
         
-        int index = exec.orderIDtoTickerID.get(orderId); // this index is also the tickerId
-        OrderState orderState = exec.watchList.get(index).orderState;
-        orderState.m_status = status;
-        // update the OrderState object of the corresponding trade with status, etc.
+        if ( !exec.orderIDtoPermID.containsKey(orderId)) { // this is first orderStatus for that order
+            exec.orderIDtoPermID.put(orderId, permId);            
+        }
+        
+        int index = exec.orderIDtoTickerID.get(orderId); // this is also the tickerId
+        exec.watchList.get(index).orderStatus = status; // this isn't really using the enumerated type.. prob dont need it                
     }
 
     @Override
@@ -116,52 +187,19 @@ public class DataStreamHandler implements EWrapper{
     public void openOrderEnd() {
         System.out.println("Called openOrderEnd");
     }
-
+    
     @Override
-    public void updateAccountValue(String key, String value, String currency, String accountName) {
-        System.out.println("Called updateAccountValue: " + key + ", " + value + ", " + currency + ", " + accountName);     
-        exec.portfolios.get(accountName).updatePortfolio(key, value, currency, accountName);
-    }
-
-    @Override
-    public void updatePortfolio(Contract contract, int position, double marketPrice, double marketValue,
-            double averageCost, double unrealizedPNL, double realizedPNL, String accountName) {
-        System.out.println("Called updatePortfolio: ");
+    public void execDetails(int reqId, Contract contract, Execution execution) {
+        // called when an order is executed
+        System.out.println("Called execDetails");
         
-        /*        
-        for (Trade trade : exec.watchList) {
-            if (trade.contract.m_conId == contract.m_conId) {
-                trade.contract = contract;
-                if (trade.quantity != position) {
-                    System.out.println("WARNING, updatePortfolio: position mismatch with watchList. Overwriting");
-                    trade.quantity = position;
-                }
-                
-                
-            }
-        }
-        */
+        
     }
 
     @Override
-    public void updateAccountTime(String timeStamp) {
-        System.out.println("Called updateAccountTime");
-    }
-
-    @Override
-    public void accountDownloadEnd(String accountName) {
-        System.out.println("Called accountDownloadEnd");
-    }
-
-    @Override
-    public void nextValidId(int orderId) {
-        nextOrderID = orderId;
-        System.out.println("nextOrderID received: " + orderId);
-        if (orderId != 1) {
-            //System.out.println("NEXT VALID ID RECEIVED NOT EQUAL TO 1: ORDER ID IS STILL INDEX INTO ORDER LIST: EXITING");
-            //System.exit(-1);
-        }
-    }
+    public void execDetailsEnd(int reqId) {
+        System.out.println("Called execDetailsEnd");
+    }    
 
     @Override
     public void contractDetails(int reqId, ContractDetails contractDetails) {
@@ -179,19 +217,6 @@ public class DataStreamHandler implements EWrapper{
     }
 
     @Override
-    public void execDetails(int reqId, Contract contract, Execution execution) {
-        // called when an order is executed
-        System.out.println("Called execDetails");
-        
-        
-    }
-
-    @Override
-    public void execDetailsEnd(int reqId) {
-        System.out.println("Called execDetailsEnd");
-    }
-
-    @Override
     public void updateMktDepth(int tickerId, int position, int operation, int side, double price, int size) {
         System.out.println("Called updateMktDepth");
     }
@@ -205,21 +230,6 @@ public class DataStreamHandler implements EWrapper{
     @Override
     public void updateNewsBulletin(int msgId, int msgType, String message, String origExchange) {
         System.out.println("Called updateNewsBulletin");
-    }
-
-    @Override
-    public void managedAccounts(String accountsList) {
-        System.out.println("Managed Accounts: ");
-        String[] accounts = accountsList.split(",");
-        
-        for (String acct : accounts) {
-            System.out.println(acct);
-            Portfolio p = new Portfolio();
-            p.acctCode = acct;
-            exec.portfolios.put(acct, p); // finishing off exec constructor            
-        }
-        
-        System.out.println("End Managed Accounts");
     }
 
     @Override

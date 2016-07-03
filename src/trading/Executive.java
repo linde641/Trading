@@ -8,6 +8,7 @@ package trading;
 import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
+import com.ib.client.Position;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -22,41 +23,54 @@ import java.util.Scanner;
  * @author paidforbyoptions
  */
 public class Executive {
-
-    // Data
-    public int port;
-    public int clientID;
-    public Path tickerFile;        
-    public List<Trade> watchList;  
-    public Map<String, Portfolio> portfolios; // maps acct Strings to portfolios    
-    public HashMap<Integer, Integer> orderIDtoTickerID; // maps orderIDs to tickerIDs aka watchList index
+    
+    int     clientID;
+    public  Path watchListFile;        
+    public  List<Trade> watchList;  
+    public  Map<String, Portfolio> portfolios; // maps acct Strings to portfolios. initialized after connection   
+    public  Map<Integer, Integer> orderIDtoPermID;
+    public  HashMap<Integer, Integer> orderIDtoTickerID; // maps permIDs to tickerIDs aka watchList index
     DataStreamHandler dataStreamHandler;        
     
-
-    public Executive(Path tickerFile, int port, int clientID)
+    
+    public Executive(Path watchListFile, int clientID, int port)
     {        
-        this.tickerFile = tickerFile; 
+        this.watchListFile = watchListFile; 
         this.clientID = clientID;
         this.watchList = new LinkedList(); 
         this.portfolios = new HashMap();
+        this.orderIDtoPermID = new HashMap();
+        this.orderIDtoTickerID = new HashMap();
         
         /*Portfolio(s) not constructed until "ManagedAccounts" is called in response
         to the constructor below which creates socket connection etc.
         Done this way because in general I don't know how many accts/portfolios there
         will be yet. Should usually just be 1 but for scalability, handling however many
-        */
+        */                
         
-        // connection happens in call stack started here
-        this.dataStreamHandler = new DataStreamHandler(this, port, clientID);
+        importWatchList();    
+        connect(port);
+        while(portfolios.isEmpty()){ // this needs to be fixed. !isEmpty doesn't mean it's actually done updating.
+            /* waiting for DataStreamHandler.managedAccounts to complete
+            otherwise this constructor will return and execute() will begin
+            before portfolio has been initialized.
+            */
+        }
     }    
     
     /**************************************************************************/
     /************************* Methods ****************************************/
-    /**************************************************************************/
+    /**************************************************************************/      
     
-    public void importWatchlist()
+    private void connect(int port) // must be called to finish construction
+    {
+        this.dataStreamHandler = new DataStreamHandler(this, port, clientID);
+    }
+    
+    
+    private void importWatchList()
     {        
-        System.out.println("Getting trades from " + tickerFile.toAbsolutePath().toString());                
+        System.out.println("Getting trades from " + watchListFile.toAbsolutePath().toString());                
         
         /* the variables below should all be fields in the watchList file.
             Some are unused because they aren't in the file yet. These fields are saved
@@ -70,14 +84,16 @@ public class Executive {
     
         int i = 0;
     
-        try (Scanner scanner = new Scanner(tickerFile)){                                               
+        try (Scanner scanner = new Scanner(watchListFile)){                                               
             scanner.useDelimiter(",|\\r|\\n");                
             scanner.nextLine();            
             
-            while (scanner.hasNextLine()) {                   
+            while (scanner.hasNextLine()) {              
+                
                 Contract    contract = new Contract();
                 Order       order = new Order();
-                OrderState orderState = new OrderState();
+                OrderState  orderState = new OrderState(); 
+                Position    position = new Position();
                 
                 ticker = scanner.next();
                 contract.m_symbol = ticker;
@@ -104,8 +120,9 @@ public class Executive {
                 
                 scanner.nextLine();
                 
+                //position.contract(contract);
                 Trade trade = new Trade(ticker, isActive, entry, target, stop,
-                        rank, contract, order, orderState, quantity, clientID);
+                        rank,contract, position, order, orderState, quantity, clientID);
                 /* 
                 NOTE: this ^ constructor calls a private method to set the main 
                 order fields such as "action" etc.
@@ -121,17 +138,18 @@ public class Executive {
         {
             
         }
-    }            
+    }
     
     
     public void execute() 
-    {
+    {        
         for (Portfolio p : portfolios.values()) {
             dataStreamHandler.client.reqAccountUpdates(true, p.acctCode);            
-        }
+        }        
+                
+        //dataStreamHandler.client.reqPositions();
         
-        dataStreamHandler.client.reqPositions();
-        
+        /*
         try {
             Thread.sleep(1000);
         }
@@ -140,9 +158,14 @@ public class Executive {
             System.out.println("Nigger");
         }
         System.exit(0);
+        */
+        
+        Trade trade;
         
         for (int i = 0; i < watchList.size(); i++) {
-            dataStreamHandler.client.reqMktData(i, watchList.get(i).contract, null, false, null);                                
+            trade = watchList.get(i);
+            trade.initOrder(clientID, trade.quantity());
+            dataStreamHandler.client.reqMktData(i, trade.contract, null, false, null);                                
         }
                         
         while (true) {
@@ -153,7 +176,7 @@ public class Executive {
             
             for (int i = 0; i < watchList.size(); i++){
                 
-                Trade trade = watchList.get(i);
+                trade = watchList.get(i);
                 double currentPrice = trade.getPrice();
                 
                 if (!trade.isActive) // hasn't triggered 
@@ -165,32 +188,40 @@ public class Executive {
                         
                         trade.order.m_orderId = dataStreamHandler.nextOrderID;
                         dataStreamHandler.nextOrderID++; // THIS MAY NEED SYNCHRONIZATION: ORDER ID IS UPDATED FROM EREADER THREAD
+                        // the above two lines should really be made atomic so the used orderID can't be used twice
+                        orderIDtoTickerID.put(trade.order.m_orderId, i);
                         /* 
                         still need to set the order's price, permId, etc before submitting
                         might want to change the order type here. It's initialized as LMT
-                        */
-                        trade.order.m_lmtPrice = trade.last;
-                        dataStreamHandler.client.placeOrder(trade.order.m_orderId, trade.contract, trade.order);
-                        System.out.println("Placed order for " + trade.toString());  
-                        trade.isActive = true;
+                        */                        
+                        if (trade.enterTrade(dataStreamHandler.client) ){
+                            System.out.println("Placed entry order for " + trade.toString());
+                            trade.initOrder(clientID, trade.quantity());
+                        }
+                        else {
+                            System.out.println("Entry order for " + trade.toString() + " failed");
+                        }
                     }
                 } 
                 else // trade is already active
                 {
-                        // check for stop
-        //                    NOTE: later, need to implement more advanced causes of a trade exiting:
-        //                    rather than just a stop or target being hit, should exit if it 
-        //                            "feels weird", etc
-
-                    if (trade.isLong
-                            && (currentPrice >= trade.target || currentPrice <= trade.stop)) {
+                /*// check for stop
+                NOTE: later, need to implement more advanced causes of a trade exiting:
+                rather than just a stop or target being hit, should exit if it 
+                "feels weird", etc
+                        */
+                    if ((trade.isLong && (currentPrice >= trade.target || currentPrice <= trade.stop))
+                            || (trade.isShort && (currentPrice <= trade.target || currentPrice >= trade.stop))) {
                         // target is reached or getting stopped out
-                        trade.exitTrade();
-                    } 
-                    else if (trade.isShort
-                            && (currentPrice <= trade.target || currentPrice >= trade.stop)) {
-                        trade.exitTrade();
-                    }
+                        trade.order.m_orderId = dataStreamHandler.nextOrderID;
+                        dataStreamHandler.nextOrderID++; // THIS MAY NEED SYNCHRONIZATION: ORDER ID IS UPDATED FROM EREADER THREAD                        
+                        if (trade.exitTrade(dataStreamHandler.client)) {
+                            System.out.println("Placed exit order for " + trade.toString());
+                        }
+                        else {
+                            System.out.println("Exit order for " + trade.toString() + " failed");
+                        }
+                    }                    
                     // else do nothing
                 }
             }        
