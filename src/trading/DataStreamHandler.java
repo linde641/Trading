@@ -20,7 +20,6 @@ import com.ib.client.Execution;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
 import com.ib.client.UnderComp;
-import com.ib.client.Position;
 
 
 public class DataStreamHandler implements EWrapper{
@@ -28,11 +27,9 @@ public class DataStreamHandler implements EWrapper{
     public Executive exec;
     public EClientSocket client;   
     public int nextOrderID;
-    public int clientID;
-    
+    public int clientID;    
     public boolean msgComplete;
-    
-    @SuppressWarnings({"empty-statement", "CallToPrintStackTrace"})
+        
     public DataStreamHandler(Executive exec, int port, int clientID)
     {
         this.exec = exec;
@@ -50,6 +47,8 @@ public class DataStreamHandler implements EWrapper{
         msgComplete = true;
     }
 
+    
+    
     @Override
     public void managedAccounts(String accountsList) {
         System.out.println("Managed Accounts: ");
@@ -77,8 +76,7 @@ public class DataStreamHandler implements EWrapper{
 
     @Override
     public void updateAccountValue(String key, String value, String currency, String accountName) {
-        System.out.println("Called updateAccountValue: " + key + ", " + value + ", " + currency + ", " + accountName);
-        // portfolios is initialized in "managedAccounts()"
+        System.out.println("Called updateAccountValue: " + key + ", " + value + ", " + currency + ", " + accountName);        
         exec.portfolios.get(accountName).updatePortfolio(key, value, currency, accountName);
     }
 
@@ -118,16 +116,10 @@ public class DataStreamHandler implements EWrapper{
         
     }    
     
-    @Override
-    @SuppressWarnings("CallToPrintStackTrace")
+    @Override    
     public void tickPrice(int tickerId, int field, double price, int canAutoExecute) {
-        try {
-            System.out.println("tickPrice: " + tickerId + "," + field + "," + price);   
-            exec.watchList.get(tickerId).updatePrice(price, field);            
-        }
-        catch (Error e) {
-            e.printStackTrace();
-        }
+        System.out.println("tickPrice: " + tickerId + "," + field + "," + price);   
+        exec.watchList.get(tickerId).updatePrice(price, field);            
     }
 
     @Override
@@ -137,14 +129,8 @@ public class DataStreamHandler implements EWrapper{
 
     @Override
     public void tickOptionComputation(int tickerId, int field, double impliedVol, double delta,
-            double optPrice, double pvDividend, double gamma, double vega, double theta, double undPrice) {
-        try {
-            System.out.println("OptionPrice: " + tickerId + "," + field + "," + optPrice +  ", IV:" + impliedVol);            
-            
-        }
-        catch (Error e) {
-            e.printStackTrace();
-        }        
+            double optPrice, double pvDividend, double gamma, double vega, double theta, double undPrice) {        
+        System.out.println("OptionPrice: " + tickerId + "," + field + "," + optPrice +  ", IV:" + impliedVol);
     }
 
     @Override
@@ -174,7 +160,7 @@ public class DataStreamHandler implements EWrapper{
         }
         
         int index = exec.orderIDtoTickerID.get(orderId); // this is also the tickerId
-        exec.watchList.get(index).orderStatus = status; // this isn't really using the enumerated type.. prob dont need it                
+        exec.watchList.get(index).orderStatus = status;
     }
 
     @Override
@@ -191,9 +177,7 @@ public class DataStreamHandler implements EWrapper{
     @Override
     public void execDetails(int reqId, Contract contract, Execution execution) {
         // called when an order is executed
-        System.out.println("Called execDetails");
-        
-        
+        System.out.println("Called execDetails");                
     }
 
     @Override
@@ -241,16 +225,8 @@ public class DataStreamHandler implements EWrapper{
     public void historicalData(int reqId, String date, double open, double high, double low,
             double close, int volume, int count, double WAP, boolean hasGaps) {	       
         System.out.println("Called historicalData");
-        try 
-	{
-		System.out.println("historicalData: " + reqId + "," + date + "," + 
-                                    open + "," + high  + "," + low  + "," + close + "," +
-                                    volume);
-	} 
-	catch (Exception e)
-        {
-		e.printStackTrace ();
-        }        
+        System.out.println("historicalData: " + reqId + "," + date + "," + 
+            open + "," + high  + "," + low  + "," + close + "," + volume);	
     }
 
     @Override
@@ -346,6 +322,7 @@ public class DataStreamHandler implements EWrapper{
     }
 
     @Override
+    @SuppressWarnings("CallToPrintStackTrace")
     public void error(Exception e) {        
         e.printStackTrace();
     }
@@ -357,7 +334,7 @@ public class DataStreamHandler implements EWrapper{
 
     @Override
     public void error(int id, int errorCode, String errorMsg) {        
-        System.out.println("Error Code: " + errorCode + ", Error Msg: " + errorMsg);        
+        System.out.println("Error Code: " + errorCode + ", Error Msg: " + errorMsg + " ID: " + id);        
     }
 
     @Override

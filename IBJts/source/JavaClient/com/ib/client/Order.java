@@ -203,20 +203,7 @@ public class Order {
         m_whatIf = false;
         m_notHeld = false;
     }
-    
-    
-    public void setMainOrderFields(int orderId, int clientId, int permId, String action, int totalQuantity,
-            String orderType, double lmtPrice, double auxPrice){
-        // added 6/26/16 AL 
-        this.m_orderId = orderId;
-        this.m_clientId = clientId;
-        this.m_permId = permId;
-        this.m_action = action;
-        this.m_totalQuantity = totalQuantity;
-        this.m_orderType = orderType;
-        this.m_lmtPrice = lmtPrice;
-        this.m_auxPrice = auxPrice;
-    }    
+            
 
     public boolean equals(Object p_other) {
 

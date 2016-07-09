@@ -8,14 +8,22 @@ package trading;
 import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
-import com.ib.client.Position;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 /**
@@ -25,7 +33,7 @@ import java.util.Scanner;
 public class Executive {
     
     int     clientID;
-    public  Path watchListFile;        
+    public  Path watchListPath;        
     public  List<Trade> watchList;  
     public  Map<String, Portfolio> portfolios; // maps acct Strings to portfolios. initialized after connection   
     public  Map<Integer, Integer> orderIDtoPermID;
@@ -35,7 +43,7 @@ public class Executive {
     
     public Executive(Path watchListFile, int clientID, int port)
     {        
-        this.watchListFile = watchListFile; 
+        this.watchListPath = watchListFile; 
         this.clientID = clientID;
         this.watchList = new LinkedList(); 
         this.portfolios = new HashMap();
@@ -70,7 +78,7 @@ public class Executive {
     
     private void importWatchList()
     {        
-        System.out.println("Getting trades from " + watchListFile.toAbsolutePath().toString());                
+        System.out.println("Getting trades from " + watchListPath.toAbsolutePath().toString());                
         
         /* the variables below should all be fields in the watchList file.
             Some are unused because they aren't in the file yet. These fields are saved
@@ -84,7 +92,7 @@ public class Executive {
     
         int i = 0;
     
-        try (Scanner scanner = new Scanner(watchListFile)){                                               
+        try (Scanner scanner = new Scanner(watchListPath)){                                               
             scanner.useDelimiter(",|\\r|\\n");                
             scanner.nextLine();            
             
@@ -123,10 +131,7 @@ public class Executive {
                 //position.contract(contract);
                 Trade trade = new Trade(ticker, isActive, entry, target, stop,
                         rank,contract, position, order, orderState, quantity, clientID);
-                /* 
-                NOTE: this ^ constructor calls a private method to set the main 
-                order fields such as "action" etc.
-                */
+
                 watchList.add(trade);
                 System.out.println(watchList.get(i).toString());
                 i++;                                
@@ -140,6 +145,35 @@ public class Executive {
         }
     }
     
+    /*
+    public void updateWatchListFile(int index, int column, Object value)
+    {        
+        try {
+            //RandomAccessFile file = new RandomAccessFile(watchListPath.toFile(), "rw");
+            FileReader fr = new FileReader(watchListPath.toFile());
+            BufferedReader reader = new BufferedReader(fr);
+            FileWriter fw = new FileWriter(watchListPath.toFile());
+            BufferedWriter writer = new BufferedWriter(fw);
+            
+            for (int i = 0; i <= watchList.size(); i++){ //using <= to skip file header
+                reader.readLine();
+            }
+            int c;
+            for (int i = 0; i < column; i++){
+                while ( !String.valueOf(c = reader.read()).equals(",") ){
+                    // scan till comma
+                }                
+            }
+            writer.w
+            
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(Executive.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            Logger.getLogger(Executive.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+    }
+    */
     
     public void execute() 
     {        
@@ -183,20 +217,16 @@ public class Executive {
                 {
                     // assuming here that each trade's current price is asynchronously updated by the client thread
                     
-                    if ((currentPrice >= trade.entry && trade.isLong)
-                            || currentPrice <= trade.entry && trade.isShort) {// triggered
+                    if ( ((currentPrice >= trade.entry && trade.isLong)
+                            || currentPrice <= trade.entry && trade.isShort) && currentPrice != 0) {// triggered
                         
                         trade.order.m_orderId = dataStreamHandler.nextOrderID;
                         dataStreamHandler.nextOrderID++; // THIS MAY NEED SYNCHRONIZATION: ORDER ID IS UPDATED FROM EREADER THREAD
                         // the above two lines should really be made atomic so the used orderID can't be used twice
-                        orderIDtoTickerID.put(trade.order.m_orderId, i);
-                        /* 
-                        still need to set the order's price, permId, etc before submitting
-                        might want to change the order type here. It's initialized as LMT
-                        */                        
+                        orderIDtoTickerID.put(trade.order.m_orderId, i);            
                         if (trade.enterTrade(dataStreamHandler.client) ){
                             System.out.println("Placed entry order for " + trade.toString());
-                            trade.initOrder(clientID, trade.quantity());
+                            trade.initOrder(clientID, trade.quantity()); // re-initializing the order for the cover later
                         }
                         else {
                             System.out.println("Entry order for " + trade.toString() + " failed");
@@ -210,8 +240,9 @@ public class Executive {
                 rather than just a stop or target being hit, should exit if it 
                 "feels weird", etc
                         */
-                    if ((trade.isLong && (currentPrice >= trade.target || currentPrice <= trade.stop))
-                            || (trade.isShort && (currentPrice <= trade.target || currentPrice >= trade.stop))) {
+                    if ( ((trade.isLong && (currentPrice >= trade.target || currentPrice <= trade.stop))
+                            || (trade.isShort && (currentPrice <= trade.target || currentPrice >= trade.stop)) )
+                            && currentPrice != 0)  {
                         // target is reached or getting stopped out
                         trade.order.m_orderId = dataStreamHandler.nextOrderID;
                         dataStreamHandler.nextOrderID++; // THIS MAY NEED SYNCHRONIZATION: ORDER ID IS UPDATED FROM EREADER THREAD                        

@@ -9,6 +9,7 @@ Add notification feature.
 Handle loss of internet connection.
 
 Have some volume criteria in trade entries as well as just price action. Get the avg volume over some period and confirm that current volume is higher.
+-Update 7/8/16: Will be using market depth instead most likely.
 
 make a small gui for manual overriding
 -update: Should probably just use TWS. Need to make sure that the program can distinguish between orders that it has sent and orders that I manually sent from TWS and then not do anything to mess them up. Basically if I override via TWS, the program should stop managing that trade until further notice etc.
@@ -18,6 +19,7 @@ will need number of shares/contracts as field in watchlist. This means there wil
 need to be a check in code to make sure I didn’t accidentally mix them up which could lead to a catastrophic over/under order. ex buy 1000 contracts instead of 10 because 10 contracts = 1000 shares etc.
 
 May need to update trade.initOrder because I just made it so that the orders are initialized with a limit 0 price by default. There will need to be more work done at order placement time to update the price before it is sent.
+-Update 7/8/16: Currently sets the order’s price in the functions trade.enterTrade() and trade.exitTrade() via a call to getPrice(). Current implementation of getPrice is just returning “last”. Will need to change this to use market depth later.
 
 Still need to initialize the map from order IDs to watchlist index (ticker IDs)
 Need to get all open orders at startup and populate hash map accordingly. 
@@ -36,6 +38,7 @@ Error Code: 110, Error Msg: The price does not conform to the minimum price vari
 resolved 6/28: was sending order with LMT price = -1
 
 added setMainOrderFields to IB API Order class. Need to create a list of all changes to IB API code in this file.
+-Update 7/3/16: Moved this into trade class. Don’t want to be altering IB API.
 
 There are currently some places where I purposely exit the program if certain errors take place. These need to either be handled more gracefully or handled by a wrapper script. search for system.exit()
 
@@ -57,6 +60,8 @@ Or, do I really even need to be holding order data once the orders have cleared?
 added two maps: orderID -> tickerID and orderID -> permID. Both are useful I think.
 
 Need to re-initialize trade.order after successfully executing the entry. This will set it up for an exit order. 
+-Done 7/2/16
+-Update 7/8/16: Found bug in trade.initOrder.
 
 probably should update the prices/PnL fields in the portfolio positions as well as in the trade class as new price data comes in.
 
@@ -69,4 +74,6 @@ Need to add the ability to send partial orders, particularly on exit. Right now 
 
 Known error: Still need to handle open orders at startup. Right now you get null pointer errors because the map orderIDtoTickerID isn’t correctly populated yet. This will need to be read in from watchlist file.
 
-asdf
+for now, trade.enterTrade() and trade.exitTrade() both block until order is fully executed. Should change this eventually.
+
+Ultimately need to start using market depth data to optimize the price I send with my order. 

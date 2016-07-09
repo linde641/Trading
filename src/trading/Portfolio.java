@@ -5,7 +5,7 @@
  */
 package trading;
 
-import com.ib.client.Position;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -28,7 +28,7 @@ public class Portfolio {
     
     public Portfolio()
     {
-        // null for now because this class will get updated a lot probably
+        positions = new LinkedList();
     }
     
     public void updatePortfolio(String key, String value, String currency, String accountName)

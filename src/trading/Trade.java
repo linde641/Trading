@@ -9,7 +9,6 @@ import com.ib.client.Contract;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
 import com.ib.client.EClientSocket;
-import com.ib.client.Position;
 
 /**
  *
@@ -60,35 +59,23 @@ public class Trade {
                 
         this.position = position;
         this.contract = contract;
-        //this.contract = position.contract();
-        //position.contract(contract);
         this.order = order;
         this.orderState = orderState;
         this.quantity = quantity;        
-        this.orderStatus = OrderStatus.NotSet.get();        
-        
-        //initOrder(clientId, quantity);
+        this.orderStatus = OrderStatus.NotSet.get();                        
     }        
 
-    public Contract contract()
-    {
-        return contract;
-    }
+    public Contract contract() { return contract; } 
     
-    public void contract(Contract c) 
-    {
-        this.contract = c;
-    }
+    public void contract(Contract c) { this.contract = c; }    
     
-    public Order order()
-    {
-        return this.order;
-    }
+    public void updateQuantity(int quantity) { this.quantity = quantity; }
     
-    public void order(Order o)
-    {
-        this.order = o;
-    }
+    public int quantity() { return this.quantity; }    
+    
+    public Order order() { return this.order; }    
+    
+    public void order(Order o) { this.order = o; }
     
     public void initOrder(int clientId, int quantity)
     {                
@@ -159,7 +146,7 @@ public class Trade {
                         break;
                 }
             }
-            else if (contract.m_secType.equals("OPT")){
+            else if (contract.m_secType.equals("STK")){
                 System.out.println("WARNING: Generating a STK SELL TO COVER order");
                 action = Action.SELL.get();                    
             }
@@ -197,10 +184,22 @@ public class Trade {
         setMainOrderFields( int orderId, int clientId, int permId, String action, int totalQuantity,
             String orderType, double lmtPrice, double auxPrice)
         */
-        order.setMainOrderFields(0, clientId, 0, action, quantity, "LMT", 0, 0);        
+        setMainOrderFields(0, clientId, 0, action, quantity, "LMT", 0, 0);        
     }
 
-    public void updatePrice(double newPrice, int field) // Calls IB API
+    private void setMainOrderFields(int orderId, int clientId, int permId, String action, int totalQuantity,
+            String orderType, double lmtPrice, double auxPrice){        
+        order.m_orderId = orderId;
+        order.m_clientId = clientId;
+        order.m_permId = permId;
+        order.m_action = action;
+        order.m_totalQuantity = totalQuantity;
+        order.m_orderType = orderType;
+        order.m_lmtPrice = lmtPrice;
+        order.m_auxPrice = auxPrice;
+    }    
+    
+    public void updatePrice(double newPrice, int field)
     {
         //currentPrice = newPrice;
         switch (field) {
@@ -225,20 +224,7 @@ public class Trade {
         }        
     }
     
-    public double getPrice()
-    {
-        return close;
-    }
-    
-    public void updateQuantity(int quantity)
-    {
-        this.quantity = quantity;
-    }
-    
-    public int quantity()
-    {
-        return this.quantity;
-    }
+    public double getPrice() { return last; }    
     
     public boolean enterTrade(EClientSocket client)
     {
@@ -271,7 +257,7 @@ public class Trade {
             System.err.println("Error: Attempted to exit an inactive trade");            
         }
         else {
-            order.m_lmtPrice = last;
+            order.m_lmtPrice = getPrice();
             client.placeOrder(order.m_orderId, contract, order);
             System.out.println("Waiting for execution of exit: " + toString());
             while( !orderStatus.equals(OrderStatus.Filled.get())){
