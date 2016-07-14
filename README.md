@@ -77,3 +77,6 @@ Known error: Still need to handle open orders at startup. Right now you get null
 for now, trade.enterTrade() and trade.exitTrade() both block until order is fully executed. Should change this eventually.
 
 Ultimately need to start using market depth data to optimize the price I send with my order. 
+
+7/13/16:
+Built and added the MarketData app this week. This app just gets level2 data and saves it to files. Requires a new subscription to the Nasdaq Level2 data. This app also has exec run as a separate thread so that main can take input commands and close the app gracefully. Should add this functionality to the Partially automated app as well.
