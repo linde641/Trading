@@ -1,8 +1,11 @@
 # Trading
 
+ping gdc1.ibllc.com
+
 TODO: 
 
 Create Order objects probably while loading the watchlist.
+Done
 
 Add notification feature.
 
@@ -26,19 +29,15 @@ Need to get all open orders at startup and populate hash map accordingly.
 -Edit: All open orders come in through orderStatus at startup automatically. Just need to handle them.
 -Update 7/2/16:
 This is done now I think. hashMaps from orderID -> tickerID and orderID -> permID are created. orderID -> tickerID is filled right before sending orders and is used to update status of orders. orderID->permID is filled after first orderStatus call and this should be used to store permID for trades held overnight.
+-update 10/8/16: This has been changed
 
 MAJOR: Still need to make it so that it requests data for the underlying stock for options trades as well as the option itself.
-
-Need to look at changing the trade.initOrder method because it’s stupid. May be unnecessary layers and almost certainly has unnecessary code copying.
 
 Maybe I should just read in the order.action from the watchList and then use the logic in trade.initOrder to double check that everything in the watchlist is logically consistent.
 
 look into this message:
 Error Code: 110, Error Msg: The price does not conform to the minimum price variation for this contract.
 resolved 6/28: was sending order with LMT price = -1
-
-added setMainOrderFields to IB API Order class. Need to create a list of all changes to IB API code in this file.
--Update 7/3/16: Moved this into trade class. Don’t want to be altering IB API.
 
 There are currently some places where I purposely exit the program if certain errors take place. These need to either be handled more gracefully or handled by a wrapper script. search for system.exit()
 
@@ -50,10 +49,6 @@ Note: copy and pasted the controller.Position class into the client package usin
 
 Note: a lot of the api requests result in a boatload of handler calls, and these are usually accompanied by an end message call of some sort (ex. accountDownloadEnded). Probably should be using this feature. Could make an array of booleans to show which msgs are currently active or something.
 
-should make getter/setter for trade.contract since I have it as a field and also contained within trade.position. Then I can change that without changing the code that accesses the contract.
--Update 7/2/16
-Done. Should do this for most fields at least in Trade class. set the fields private to find all usages because it will cause errors.
-
 Maybe the map from orderID to tickerID should use permID instead of orderID so it is the same between sessions. Still need to initialize this map though. This would make it easier because then I can initialize the map using permIDs as the keys while I’m reading in the watchList. 
 Or, do I really even need to be holding order data once the orders have cleared? Because then I have positions, rather than orders. So maybe I just need a list of open orders, but these will almost never be open for more than a few seconds at a time.
 -Update 7/2/16
@@ -61,7 +56,6 @@ added two maps: orderID -> tickerID and orderID -> permID. Both are useful I thi
 
 Need to re-initialize trade.order after successfully executing the entry. This will set it up for an exit order. 
 -Done 7/2/16
--Update 7/8/16: Found bug in trade.initOrder.
 
 probably should update the prices/PnL fields in the portfolio positions as well as in the trade class as new price data comes in.
 
@@ -80,3 +74,9 @@ Ultimately need to start using market depth data to optimize the price I send wi
 
 7/13/16:
 Built and added the MarketData app this week. This app just gets level2 data and saves it to files. Requires a new subscription to the Nasdaq Level2 data. This app also has exec run as a separate thread so that main can take input commands and close the app gracefully. Should add this functionality to the Partially automated app as well.
+
+
+10/08/16:
+Added TradeData class and moved watchlist import there. Also added watchlist export function which overwrites the whole file with up to date data.
+Need to probably have a separate file where I write all orders, particularly open orders. Then I’ll read in the open orders at startup (and know the permIDs) so I know what the orderStatus calls are referring to at startup.
+-Should use an actual timer to run the exec algorithm rather than spinning in that while loop sucking the processor 

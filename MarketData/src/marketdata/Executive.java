@@ -39,8 +39,7 @@ public class Executive implements Runnable {
     BlockingQueue <L2Data> L2DataQueue;
     List<File> files;
     List<BufferedOutputStream> streams;
-    
-    public Calendar calendar;
+        
     public Date date;
     public Timestamp ts;    
     
@@ -55,8 +54,7 @@ public class Executive implements Runnable {
         L2DataQueue = new LinkedBlockingQueue<>();
         files = new ArrayList<>();
         streams = new ArrayList<>();
-        
-        calendar = Calendar.getInstance();
+                
         date = new Date();
         ts = new Timestamp(date.getTime());
         
@@ -64,6 +62,7 @@ public class Executive implements Runnable {
         
         connect(port);        
     }    
+    
     
     public Timestamp getTimeStamp()
     {
@@ -73,6 +72,18 @@ public class Executive implements Runnable {
         ts = new Timestamp(date.getTime());
         return ts;
     }
+    
+    
+    public String tsDateStr(Timestamp ts)
+    {
+        return ts.toString().substring(0, 9);
+    }
+    
+    public String tsTimeStr(Timestamp ts)
+    {
+        return ts.toString().substring(11);
+    }
+    
     
     private void importWatchList()
     {        
@@ -96,7 +107,7 @@ public class Executive implements Runnable {
                 contracts.add(contract);
                 
                 String filename = dataDir.concat(contract.m_symbol); 
-                String str = ts.toString().substring(0, 19).replace(" ", "_").replace(":", "_");
+                String str = ts.toString().substring(0, 19).replace(" ", "_").replace(":", "-");
                 filename = filename.concat("_" + str + ".txt"); // ex: SPY_2016-07-12_hhmmss.ns.txt
                 File file = new File(filename);
                 files.add(file);
@@ -140,18 +151,21 @@ public class Executive implements Runnable {
         }
         
         for (int i = 0; i < contracts.size(); i++) {            
-            dataStreamHandler.client.reqMktData(i, contracts.get(i), null, false, null);
-            dataStreamHandler.client.reqMktDepth(i, contracts.get(i), 7, null);
+            //dataStreamHandler.client.reqMktData(i, contracts.get(i), null, false, null);
+            dataStreamHandler.client.reqMktDepth(i, contracts.get(i), 10, null);
             //dataStreamHandler.client.reqContractDetails(i, contracts.get(i));
         }                
                 
-        while(!shutdown) {
-            if ( !L2DataQueue.isEmpty()) {                
-                entry = L2DataQueue.poll();
-                //System.out.println(entry.toString());                
-                bufStream = streams.get(entry.tickerID);                
-                bufStream.write(entry.toString().getBytes());                
-            }
+        while(!shutdown) {            
+            try {
+                if ((entry = L2DataQueue.poll(1, TimeUnit.SECONDS)) != null){
+                    bufStream = streams.get(entry.tickerID);                
+                    bufStream.write(entry.toString().getBytes()); 
+                }
+            } catch (InterruptedException ex) {
+                //Logger.getLogger(Executive.class.getName()).log(Level.SEVERE, null, ex);
+                System.out.println("Executive was interrupted during blocking L2DataQueue.take()");
+            }                           
         }
 
         for (int i = 0; i < streams.size(); i++) {

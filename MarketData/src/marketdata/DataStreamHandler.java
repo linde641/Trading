@@ -192,7 +192,7 @@ public class DataStreamHandler implements EWrapper{
             int operation, int side, double price, int size) {
         
         //System.out.println("Called updateMktDepthL2");
-        Timestamp ts = exec.getTimeStamp();                
+        Timestamp ts = exec.getTimeStamp();
         L2Data data = new L2Data(tickerId, position, operation, side, price, size, marketMaker, ts);
         exec.L2DataQueue.add(data);
     }
@@ -315,12 +315,15 @@ public class DataStreamHandler implements EWrapper{
 
     @Override
     public void error(String str) {
-        System.out.println(str);
+        Timestamp ts = exec.getTimeStamp(); 
+        System.out.println(str + exec.tsTimeStr(ts));
     }
 
     @Override
-    public void error(int id, int errorCode, String errorMsg) {        
-        System.out.println("Error Code: " + errorCode + ", Error Msg: " + errorMsg + " ID: " + id);        
+    public void error(int id, int errorCode, String errorMsg) {
+        Timestamp ts = exec.getTimeStamp();
+        System.out.println("Error Code: " + errorCode + ", Error Msg: " + errorMsg + " ID: " + id
+            + " " + exec.tsTimeStr(ts));
     }
 
     @Override

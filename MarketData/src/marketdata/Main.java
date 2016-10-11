@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -49,20 +51,26 @@ public class Main {
         
         Path watchListFile = Paths.get("watchList.csv");
         exec = new Executive(watchListFile, CLIENT_ID, port); // imports watchList here        
-        //exec.execute();
-        new Thread(exec).start();
+        
+        Thread execThread = new Thread(exec);
+        execThread.start();
         Scanner sc = new Scanner(System.in);
         System.out.println("Type 'exit' to exit program");
                
         while(true) {
             String input = sc.next(); 
             if (input.equals("exit") || input.equals("Exit") ) {
-                exec.shutdown = true;
-                break;
+                try {
+                    exec.shutdown = true;
+                    execThread.join();
+                    break;
+                } catch (InterruptedException ex) {
+                    //Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+                }
             }
         }
-        
-        System.out.println("MAIN THREAD EXITING");;
+                
+        System.out.println("EXITING");
     }
     
 }
